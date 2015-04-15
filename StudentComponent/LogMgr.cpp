@@ -54,7 +54,14 @@ using namespace std;
   }
 
   vector<LogRecord*> LogMgr::stringToLRVector(string logstring) {
-    return vector<LogRecord*>();
+    vector<LogRecord*> result;
+  istringstream stream(logstring);
+  string line;
+  while (getline(stream, line)) {
+    LogRecord* lr = LogRecord::stringToRecordPtr(line);
+    result.push_back(lr);
+  }
+  return result; 
   }
   
   void LogMgr::abort(int txid) {
@@ -87,6 +94,7 @@ using namespace std;
 
   }
 
+  //Write to memory
   int LogMgr::write(int txid, int page_id, int offset, string input, string oldtext) {
     //Update tx_table:
     tx_table[txid].lastLSN = se->getLSN(page_id);
