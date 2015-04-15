@@ -113,5 +113,5 @@ using namespace std;
   }
 
   void LogMgr::setStorageEngine(StorageEngine* engine) {
-
+    se = engine;
   }
