@@ -45,7 +45,7 @@ void LogMgr::analyze(vector <LogRecord*> log) {
 
 		//Update dirty page table when type is update:
 		UpdateLogRecord* ulr = dynamic_cast<UpdateLogRecord*>(*iter);
-		if (ulr) {
+		if (ulr == nullptr) {
 			auto dptIterator = dirty_page_table.find(ulr->getPageID());
 			if (dptIterator == dirty_page_table.end()) {
 				dirty_page_table[ulr->getPageID()] = ulr->getLSN();
@@ -60,7 +60,47 @@ bool LogMgr::redo(vector <LogRecord*> log) {
 }
 
 void LogMgr::undo(vector <LogRecord*> log, int txnum) {
+	//Looping backwards from end of iterator.
+	//If txnum == -1, I go until the transaction table is empty.
+	//If txnum != -1, will return as soon as the transaction table element is removed.
+	int prev_lsn = NULL_LSN;
+	for (auto iter = log.end()-1; tx_table.size(); --iter) {
+		if (txnum != NULL_LSN && (*iter)->getTxID() != txnum) {
+			continue;
+		}
 
+		UpdateLogRecord* ulr = dynamic_cast<UpdateLogRecord*>(*iter);
+		if (ulr != nullptr) {
+			continue;
+		}
+
+		//Create the compensation log record
+		int current_lsn = se->nextLSN();
+		int txid = ulr->getTxID();
+		int page_id = ulr->getPageID();
+  		int page_offset = ulr->getOffset();
+  		string after_img = ulr->getBeforeImage();
+  		int undo_next_lsn = ulr->getprevLSN();
+		CompensationLogRecord* cmpRecord = new CompensationLogRecord(
+			current_lsn, prev_lsn, txid, page_id, page_offset,
+			after_img, undo_next_lsn);
+
+		prev_lsn = current_lsn;
+		logtail.push_back(cmpRecord);
+
+		if (!se->pageWrite(page_id, page_offset, after_img, current_lsn)) {
+			return;
+		}
+
+		//If applicable, remove from transaction table
+		if ((*iter)->getprevLSN() == NULL_LSN) {
+			tx_table.erase((*iter)->getTxID());
+			if (txnum != NULL_LSN) {
+				//Only undoing one transaction
+				return;
+			}
+		}
+	}
 }
 
 vector<LogRecord*> LogMgr::stringToLRVector(string logstring) {
@@ -75,7 +115,7 @@ vector<LogRecord*> LogMgr::stringToLRVector(string logstring) {
 }
 
 void LogMgr::abort(int txid) {
-
+	undo(logtail, txid);
 }
 
 void LogMgr::checkpoint() {
@@ -114,8 +154,9 @@ void LogMgr::pageFlushed(int page_id) {
 
 void LogMgr::recover(string log) {
 		//analyze(logtail);
-		//redo();
+		//if (redo()) {;
 		//undo();
+		//}
 }
 
 	//Write to memory
