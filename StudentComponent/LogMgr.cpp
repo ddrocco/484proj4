@@ -1,4 +1,5 @@
 #include "LogMgr.h"
+#include <sstream>
 
 using namespace std;
 
@@ -31,18 +32,27 @@ using namespace std;
 	}
 
 	void LogMgr::analyze(vector <LogRecord*> log) {
+		//Put active transactions into txtable, put updates into dirty page table
+		//Remove transactions from txtable when tranactiontype is end
+
 		for(auto iter = log.begin(); iter != log.end(); ++iter) {
-			/*if (logrec.getType == TxType.END) {
-				//clear from table
-			}*/
+			//Clear transaction table entry when type is end:
+			if ((*iter)->getType() == END) {
+				int LSN = (*iter)->getLSN();
+				tx_table.erase(LSN);
+			}
+
+			//Update dirty page table when type is update:
 			UpdateLogRecord* ulr = dynamic_cast<UpdateLogRecord*>(*iter);
 			if (ulr) {
 				auto dptIterator = dirty_page_table.find(ulr->getPageID());
-				if (dptIterator != dirty_page_table.end()) {
-					dptIterator->second = ulr->getLSN();
+				if (dptIterator == dirty_page_table.end()) {
+					dirty_page_table[ulr->getPageID()] = ulr->getLSN();
 				}
 			}
 		}
+
+		//Find active transactions that were never commit-ended.
 	}
 
 	bool LogMgr::redo(vector <LogRecord*> log) {
@@ -55,13 +65,13 @@ using namespace std;
 
 	vector<LogRecord*> LogMgr::stringToLRVector(string logstring) {
 		vector<LogRecord*> result;
-	istringstream stream(logstring);
-	string line;
-	while (getline(stream, line)) {
-		LogRecord* lr = LogRecord::stringToRecordPtr(line);
-		result.push_back(lr);
-	}
-	return result; 
+		istringstream stream(logstring);
+		string line;
+		while (getline(stream, line)) {
+			LogRecord* lr = LogRecord::stringToRecordPtr(line);
+			result.push_back(lr);
+		}
+		return result; 
 	}
 	
 	void LogMgr::abort(int txid) {
@@ -77,8 +87,10 @@ using namespace std;
 		int prev_lsn = getLastLSN(txid);
 		LogRecord* commitLogRecord = new LogRecord(se->nextLSN(), prev_lsn, txid, COMMIT);
 		logtail.push_back(commitLogRecord);
+		
 		//Flush log tail including that commit record
 		flushLogTail(commitLogRecord->getLSN());
+		
 		//Add end record but dont flush it
 		prev_lsn = getLastLSN(txid);
 		LogRecord* endLogRecord = new LogRecord(se->nextLSN(), prev_lsn, txid, END);
