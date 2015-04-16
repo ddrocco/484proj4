@@ -39,8 +39,8 @@ void LogMgr::analyze(vector <LogRecord*> log) {
 	for(auto iter = log.begin(); iter != log.end(); ++iter) {
 		//Clear transaction table entry when type is end:
 		if ((*iter)->getType() == END) {
-			int LSN = (*iter)->getLSN();
-			tx_table.erase(LSN);
+			int txid = (*iter)->getTxID();
+			tx_table.erase(txid);
 		}
 
 		//Update dirty page table when type is update:
