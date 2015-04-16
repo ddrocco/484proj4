@@ -6,6 +6,7 @@ using namespace std;
 	//Dirty page table is a map from page_id to LSN
 int LogMgr::getLastLSN(int txnum) {
 	auto iter = tx_table.find(txnum);
+	int size = tx_table.size();
 	if (iter != tx_table.end()){
 		return tx_table[txnum].lastLSN;
 	} else {
@@ -97,10 +98,11 @@ void LogMgr::commit(int txid) {
 	LogRecord* endLogRecord = new LogRecord(se->nextLSN(), prev_lsn, txid, END);
 	logtail.push_back(endLogRecord);
 	setLastLSN(txid, endLogRecord->getLSN());
+	tx_table.erase(txid);
 }
 
 void LogMgr::pageFlushed(int page_id) {
-	dirty_page_table.erase(se->getLSN(page_id));
+	dirty_page_table.erase(page_id);
 	flushLogTail(se->getLSN(page_id));
 }
 
@@ -113,10 +115,14 @@ void LogMgr::recover(string log) {
 	//Write to memory
 int LogMgr::write(int txid, int page_id, int offset, string input, string oldtext) {
 		//Update tx_table:
-	tx_table[txid].lastLSN = se->getLSN(page_id);
+	//tx_table[txid].lastLSN = getLastLSN(txid);
+	//tx_table[txid].status = U;
+
+	int lastLSNJank = getLastLSN(txid);
+	tx_table[txid].lastLSN = lastLSNJank;
 	tx_table[txid].status = U;
 
-		//If relevant Update dirty_page_table:
+	//If relevant Update dirty_page_table:
 	auto dptEntry = dirty_page_table.find(page_id);
 	if (dptEntry == dirty_page_table.end()) {
 		dirty_page_table[page_id] = se->getLSN(page_id);
