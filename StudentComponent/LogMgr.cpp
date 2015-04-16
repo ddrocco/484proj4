@@ -133,13 +133,14 @@ int LogMgr::write(int txid, int page_id, int offset, string input, string oldtex
 	if (dptEntry == dirty_page_table.end()) {
 		dirty_page_table[page_id] = se->getLSN(page_id);
 	}
-		//Add a log about it:
+
+	//Add a log about it:
 	int prev_lsn = getLastLSN(txid);
 	UpdateLogRecord* updateLogRecord = new UpdateLogRecord(se->nextLSN(), prev_lsn, txid, page_id, offset, oldtext, input);
 	logtail.push_back(updateLogRecord);
 	setLastLSN(txid, updateLogRecord->getLSN());
 
-	return tx_table[page_id].lastLSN;
+	return tx_table[txid].lastLSN;
 }
 
 void LogMgr::setStorageEngine(StorageEngine* engine) {
