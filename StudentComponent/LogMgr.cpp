@@ -56,6 +56,59 @@ void LogMgr::analyze(vector <LogRecord*> log) {
 }
 
 bool LogMgr::redo(vector <LogRecord*> log) {
+	//page,recLSN
+	int earliestChange = -1;
+	//Checks if table is 
+	if(dirty_page_table.size() > 0){
+		earliestChange = dirty_page_table.begin()->second;
+	} else {
+		return true;
+	}
+	for(auto iter = dirty_page_table.begin(); iter != dirty_page_table.end(); ++iter){
+		if(earliestChange > iter->second){
+			earliestChange = iter->second;
+		}
+	}
+
+	auto iter = log.begin();
+	for(; iter != log.end(); ++iter){
+		if((*iter)->getLSN() == earliestChange) break;
+	}
+
+	for(; iter != log.end(); ++iter){
+		if((*iter)->getType() == UPDATE){
+			UpdateLogRecord* ulr = dynamic_cast<UpdateLogRecord*>(*iter);
+			int ulrPage = ulr->getPageID();
+			int ulrLSN = ulr->getLSN();
+			int pageLSN = se->getLSN(ulrPage);
+			if(dirty_page_table.find(ulrPage) == dirty_page_table.end() 
+				|| dirty_page_table.find(ulrPage) != dirty_page_table.end() && dirty_page_table.find(ulrPage)->second > ulrLSN 
+				|| pageLSN >= ulrLSN){
+				continue;
+			} else {
+        		if(!se->pageWrite(ulrPage, ulr->getOffset(), ulr->getAfterImage(), ulrLSN)){
+        			return false;
+        		}
+			}
+		} else if((*iter)->getType() == CLR){
+			CompensationLogRecord* clr = dynamic_cast<CompensationLogRecord*>(*iter);
+			int clrPage = clr->getPageID();
+			int clrLSN = clr->getLSN();
+			int pageLSN = se->getLSN(clrPage);
+			if(dirty_page_table.find(clrPage) == dirty_page_table.end()
+				|| dirty_page_table.find(clrPage) != dirty_page_table.end() && dirty_page_table.find(clrPage)->second > clrLSN
+				|| pageLSN >= clrLSN){
+				continue;
+			} else {
+				if(!se->pageWrite(clrPage, clr->getOffset(), clr->getAfterImage(), clrLSN)){
+        			return false;
+        		}
+			}
+
+		}
+	}
+
+
 	return true;
 }
 
