@@ -26,6 +26,7 @@ void LogMgr::flushLogTail(int maxLSN) {
 		} else {
 			newlogtail.push_back(*iter);
 		}
+		delete *iter;
 	}
 	se->updateLog(logstring);
 	logtail = newlogtail;
