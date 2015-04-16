@@ -7,7 +7,7 @@ using namespace std;
 int LogMgr::getLastLSN(int txnum) {
 	auto iter = tx_table.find(txnum);
 	if (iter != tx_table.end()){
-		return iter->second.lastLSN;
+		return tx_table[txnum].lastLSN;
 	} else {
 		return NULL_LSN;
 	}
@@ -22,11 +22,10 @@ void LogMgr::flushLogTail(int maxLSN) {
 	vector <LogRecord*> newlogtail; 
 	for(auto iter = logtail.begin(); iter != logtail.end(); ++iter) {
 		if ((*iter)->getLSN() <= maxLSN) {
-			logstring += (*iter)->toString() + "\n";
+			logstring += (*iter)->toString();
 		} else {
 			newlogtail.push_back(*iter);
 		}
-		delete *iter;
 	}
 	se->updateLog(logstring);
 	logtail = newlogtail;
@@ -87,6 +86,8 @@ void LogMgr::commit(int txid) {
 	int prev_lsn = getLastLSN(txid);
 	LogRecord* commitLogRecord = new LogRecord(se->nextLSN(), prev_lsn, txid, COMMIT);
 	logtail.push_back(commitLogRecord);
+	setLastLSN(txid, commitLogRecord->getLSN());
+
 	
 	//Flush log tail including that commit record
 	flushLogTail(commitLogRecord->getLSN());
@@ -95,6 +96,7 @@ void LogMgr::commit(int txid) {
 	prev_lsn = getLastLSN(txid);
 	LogRecord* endLogRecord = new LogRecord(se->nextLSN(), prev_lsn, txid, END);
 	logtail.push_back(endLogRecord);
+	setLastLSN(txid, endLogRecord->getLSN());
 }
 
 void LogMgr::pageFlushed(int page_id) {
@@ -123,6 +125,7 @@ int LogMgr::write(int txid, int page_id, int offset, string input, string oldtex
 	int prev_lsn = getLastLSN(txid);
 	UpdateLogRecord* updateLogRecord = new UpdateLogRecord(se->nextLSN(), prev_lsn, txid, page_id, offset, oldtext, input);
 	logtail.push_back(updateLogRecord);
+	setLastLSN(txid, updateLogRecord->getLSN());
 
 	return tx_table[page_id].lastLSN;
 }
