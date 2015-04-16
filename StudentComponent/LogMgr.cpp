@@ -184,7 +184,7 @@ int LogMgr::write(int txid, int page_id, int offset, string input, string oldtex
 	//If relevant Update dirty_page_table:
 	auto dptEntry = dirty_page_table.find(page_id);
 	if (dptEntry == dirty_page_table.end()) {
-		dirty_page_table[page_id] = se->getLSN(page_id);
+		dirty_page_table[page_id] = se->getLSN(txid);
 	}
 
 	//Add a log about it:
