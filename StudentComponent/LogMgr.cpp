@@ -81,11 +81,11 @@ void LogMgr::abort(int txid) {
 void LogMgr::checkpoint() {
 	int beginCkptLSN = se->nextLSN();
 	LogRecord* ckptStart = new LogRecord(beginCkptLSN, -1, -1, BEGIN_CKPT);
-	logtail.push_back(commitLogRecord);
+	logtail.push_back(ckptStart);
 
-	int endCkptLSN = se->nextLSN()
-	ChkptLogRecord* ckptEnd = new LogRecord(endCkptLSN, beginCkptLSN, -1, tx_table, dirty_page_table);
-	logtail.push_back(commitLogRecord);
+	int endCkptLSN = se->nextLSN();
+	ChkptLogRecord* ckptEnd = new ChkptLogRecord(endCkptLSN, beginCkptLSN, -1, tx_table, dirty_page_table);
+	logtail.push_back(ckptEnd);
 }
 
 void LogMgr::commit(int txid) {
