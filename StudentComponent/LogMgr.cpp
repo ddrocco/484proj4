@@ -56,6 +56,7 @@ void LogMgr::analyze(vector <LogRecord*> log) {
 }
 
 bool LogMgr::redo(vector <LogRecord*> log) {
+	//UPDATE TXID STUFF STILL NOT COMPLETE - possibly complete
 	//page,recLSN
 	int earliestChange = -1;
 	//Checks if table is 
@@ -89,6 +90,7 @@ bool LogMgr::redo(vector <LogRecord*> log) {
         		if(!se->pageWrite(ulrPage, ulr->getOffset(), ulr->getAfterImage(), ulrLSN)){
         			return false;
         		}
+
 			}
 		} else if((*iter)->getType() == CLR){
 			CompensationLogRecord* clr = dynamic_cast<CompensationLogRecord*>(*iter);
@@ -104,10 +106,17 @@ bool LogMgr::redo(vector <LogRecord*> log) {
         			return false;
         		}
 			}
-
 		}
 	}
 
+	//tx_table[txid].lastLSN = getLastLSN(txid);
+	//tx_table[txid].status = U;
+
+	for(auto iter = tx_table.begin(); iter != tx_table.end(); ++iter){
+		if(iter->status == C){
+			tx_table.erase((*iter)->getTxID());
+		}
+	}
 
 	return true;
 }
