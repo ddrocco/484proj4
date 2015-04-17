@@ -109,12 +109,9 @@ bool LogMgr::redo(vector <LogRecord*> log) {
 		}
 	}
 
-	//tx_table[txid].lastLSN = getLastLSN(txid);
-	//tx_table[txid].status = U;
-
 	for(auto iter = tx_table.begin(); iter != tx_table.end(); ++iter){
-		if(iter->status == C){
-			tx_table.erase((*iter)->getTxID());
+		if(iter->second.status == C){
+			tx_table.erase(iter);
 		}
 	}
 
